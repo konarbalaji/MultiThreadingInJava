@@ -29,6 +29,7 @@ public class CommonUtil {
     public static void timeTaken(){
         stopWatch.stop();
         log("Total time taken : " + stopWatch.getTime());
+        stopWatchReset();
     }
 
     public static void stopWatchReset(){
