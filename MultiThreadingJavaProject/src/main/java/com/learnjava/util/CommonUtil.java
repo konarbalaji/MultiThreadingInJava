@@ -32,6 +32,12 @@ public class CommonUtil {
         stopWatchReset();
     }
 
+    public static void timeTaken(String txt){
+        stopWatch.stop();
+        log(txt + " - " + stopWatch.getTime());
+        stopWatchReset();
+    }
+
     public static void stopWatchReset(){
         stopWatch.reset();
     }
