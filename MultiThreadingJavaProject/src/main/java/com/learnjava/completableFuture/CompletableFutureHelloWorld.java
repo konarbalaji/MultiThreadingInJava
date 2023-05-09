@@ -40,7 +40,7 @@ public class CompletableFutureHelloWorld {
         CompletableFuture<String> hello = CompletableFuture.supplyAsync(() -> hws.hello());
         CompletableFuture<String> world = CompletableFuture.supplyAsync(() -> hws.world());
         CompletableFuture<String> hiCompletableFuture = CompletableFuture.supplyAsync(() -> {
-            delay(5000);
+            delay(1000);
             log("Inside hiCompletableFuture");
             return "Hi CompletableFuture!";
         });
@@ -57,6 +57,36 @@ public class CompletableFutureHelloWorld {
 
     }
 
+    public String helloWorld_4_async_calls(){
+
+        startTimer();
+        CompletableFuture<String> hello = CompletableFuture.supplyAsync(() -> hws.hello());
+        CompletableFuture<String> world = CompletableFuture.supplyAsync(() -> hws.world());
+        CompletableFuture<String> hiCompletableFuture = CompletableFuture.supplyAsync(() -> {
+            delay(1000);
+            log("Inside hiCompletableFuture");
+            return "Hi CompletableFuture!";
+        });
+        CompletableFuture<String> testFut = CompletableFuture.supplyAsync(() -> {
+            delay(1000);
+            log("Inside testFut");
+            return " testFut Here ";
+        });
+
+        String hw = hello
+                .thenCombine(world, (h, w) -> h+w)
+                .thenCombine(hiCompletableFuture, (prev, curr) -> prev+curr)
+                .thenApply(String::toUpperCase)
+                .join();
+
+        timeTaken();
+
+        return hw;
+
+    }
+
+
+
     public CompletableFutureHelloWorld(HelloWorldService helloWorldService) {
         this.hws = helloWorldService;
     }
@@ -64,6 +94,14 @@ public class CompletableFutureHelloWorld {
     public CompletableFuture<String> helloWorld(){
         return CompletableFuture.supplyAsync(hws::HelloWorld) // runs this in a common fork-join pool
                 .thenApply(String::toUpperCase);
+    }
+
+    public CompletableFuture<String> helloWorld_thenCompose (){
+
+        return CompletableFuture.supplyAsync(hws::HelloWorld) // runs this in a common fork-join pool
+                .thenCompose((prev) -> hws.worldFuture(prev))
+                .thenApply(String::toUpperCase);
+
     }
 
     public static void main(String[] args) {
