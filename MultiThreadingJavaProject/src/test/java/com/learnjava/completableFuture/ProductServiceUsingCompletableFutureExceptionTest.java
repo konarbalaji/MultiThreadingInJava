@@ -68,12 +68,16 @@ class ProductServiceUsingCompletableFutureExceptionTest {
         when(rsmock.retrieveReviews(any())).thenCallRealMethod();
         when(ismock.retrieveInventory(any())).thenThrow(new RuntimeException("Error here"));
 
-        Product prod = pscfl.retrieveProductDetailsWithInventory(productId);
-
         //then
-        assertThrows(RuntimeException.class, () -> pscfl.retrieveProductDetailsWithInventory(productId));
+        //assertThrows(RuntimeException.class, () -> pscfl.retrieveProductDetailsWithInventory_approach3(productId));
+
+        Product prod = pscfl.retrieveProductDetailsWithInventory_approach3(productId);
 
         assertNotNull(prod);
-        assertEquals(0, prod.getProductInfo().getProductOptions().size());
+        prod.getProductInfo().getProductOptions()
+                .stream()
+                .forEach(prodOpt -> {
+                    assertEquals(1, prodOpt.getInventory().getCount());
+                });
     }
 }

@@ -74,10 +74,6 @@ public class ProductServiceUsingCompletableFuture {
 
         CompletableFuture<ProductInfo> prodFut = CompletableFuture
                 .supplyAsync(() -> productInfoService.retrieveProductInfo(productId))
-                .exceptionally(ex -> {
-                    log("Inside error block for inventory update");
-                    return ProductInfo.builder().productOptions(new ArrayList<>()).build();
-                })
                 .thenApply(prodInfo -> {
                     prodInfo.setProductOptions(updateInventory(prodInfo));
                     return prodInfo;
@@ -128,6 +124,39 @@ public class ProductServiceUsingCompletableFuture {
         return prod;
     }
 
+    public Product retrieveProductDetailsWithInventory_approach3(String productId){
+        stopWatch.start();
+
+        CompletableFuture<ProductInfo> prodFut = CompletableFuture
+                .supplyAsync(() -> productInfoService.retrieveProductInfo(productId))
+                .thenApply(prodInfo -> {
+                    prodInfo.setProductOptions(updateInventory_approach3(prodInfo));
+                    return prodInfo;
+                });
+
+        CompletableFuture<Review> rev = CompletableFuture
+                .supplyAsync(() -> reviewService.retrieveReviews(productId))
+                .exceptionally(e -> {
+                    log("Handles the exception in ReviewService : " + e.getMessage());
+                    return Review.builder()
+                            .noOfReview(0)
+                            .overallRating(0)
+                            .build();
+                });
+
+        Product prod = prodFut
+                .thenCombine(rev, (productInfo, review) -> new Product(productId, productInfo, review))
+                .whenComplete((product1, ex) -> {
+                    log("Inside whenComplete : " + product1 + " and the exception is " + ex);
+                })
+                .join();
+
+        stopWatch.stop();
+
+        log("Total TimeTaken : " + stopWatch.getTime());
+        return prod;
+    }
+
     private List<ProductOption> updateInventory(ProductInfo prodInfo) {
 
         List<ProductOption> prodInfolist = prodInfo.getProductOptions()
@@ -140,13 +169,6 @@ public class ProductServiceUsingCompletableFuture {
 
         return prodInfolist;
 
-        /*prodInfo.getProductOptions()
-                    .forEach(prodOpt -> {
-                        prodOpt.setInventory(inventoryService.retrieveInventory(prodOpt));
-                    });
-
-        return prodInfo;*/
-
     }
 
     private List<ProductOption> updateInventory_approach2(ProductInfo prodInfo) {
@@ -155,13 +177,36 @@ public class ProductServiceUsingCompletableFuture {
                 .stream()
                 .map(productOption -> {
                     return CompletableFuture.supplyAsync(() -> inventoryService.retrieveInventory(productOption))
-                                    .thenApply(inv -> {
-                                        productOption.setInventory(inv);
-                                        return productOption;
-                                    });
+                            .thenApply(inv -> {
+                                productOption.setInventory(inv);
+                                return productOption;
+                            });
                 }).collect(Collectors.toList());
 
         return productOptionList.stream().map(CompletableFuture::join).collect(Collectors.toList());
+
+    }
+
+    private List<ProductOption> updateInventory_approach3(ProductInfo prodInfo) {
+
+        List<CompletableFuture<ProductOption>> productOptionList = prodInfo.getProductOptions()
+                .stream()
+                .map(productOption -> {
+                    return CompletableFuture.supplyAsync(() -> inventoryService.retrieveInventory(productOption))
+                            .exceptionally(ex -> {
+                                log("Inside updateInventory_approach2 : " + ex.getMessage());
+                                return Inventory.builder().count(1).build();
+                            })
+                            .thenApply(inv -> {
+                                productOption.setInventory(inv);
+                                return productOption;
+                            });
+                }).collect(Collectors.toList());
+
+        CompletableFuture<Void> cfAllOf = CompletableFuture.allOf(productOptionList.toArray(new CompletableFuture[productOptionList.size()]));
+        return cfAllOf.thenApply(v -> {
+           return productOptionList.stream().map(CompletableFuture::join).collect(Collectors.toList());
+        }).join();
 
     }
 }
