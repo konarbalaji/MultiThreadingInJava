@@ -5,6 +5,7 @@ import com.learnjava.service.InventoryService;
 import com.learnjava.service.ProductInfoService;
 import com.learnjava.service.ReviewService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -73,6 +74,10 @@ public class ProductServiceUsingCompletableFuture {
 
         CompletableFuture<ProductInfo> prodFut = CompletableFuture
                 .supplyAsync(() -> productInfoService.retrieveProductInfo(productId))
+                .exceptionally(ex -> {
+                    log("Inside error block for inventory update");
+                    return ProductInfo.builder().productOptions(new ArrayList<>()).build();
+                })
                 .thenApply(prodInfo -> {
                     prodInfo.setProductOptions(updateInventory(prodInfo));
                     return prodInfo;
@@ -110,7 +115,12 @@ public class ProductServiceUsingCompletableFuture {
                             .build();
                 });
 
-        Product prod = prodFut.thenCombine(rev, (productInfo, review) -> new Product(productId, productInfo, review)).join();
+        Product prod = prodFut
+                .thenCombine(rev, (productInfo, review) -> new Product(productId, productInfo, review))
+                .whenComplete((product1, ex) -> {
+                    log("Inside whenComplete : " + product1 + " and the exception is " + ex);
+                })
+                .join();
 
         stopWatch.stop();
 
