@@ -90,6 +90,27 @@ public class ProductServiceUsingCompletableFuture {
         return prod;
     }
 
+    public Product retrieveProductDetailsWithInventory_approach2(String productId){
+        stopWatch.start();
+
+        CompletableFuture<ProductInfo> prodFut = CompletableFuture
+                .supplyAsync(() -> productInfoService.retrieveProductInfo(productId))
+                .thenApply(prodInfo -> {
+                    prodInfo.setProductOptions(updateInventory_approach2(prodInfo));
+                    return prodInfo;
+                });
+
+        CompletableFuture<Review> rev = CompletableFuture
+                .supplyAsync(() -> reviewService.retrieveReviews(productId));
+
+        Product prod = prodFut.thenCombine(rev, (productInfo, review) -> new Product(productId, productInfo, review)).join();
+
+        stopWatch.stop();
+
+        log("Total TimeTaken : " + stopWatch.getTime());
+        return prod;
+    }
+
     private List<ProductOption> updateInventory(ProductInfo prodInfo) {
 
         List<ProductOption> prodInfolist = prodInfo.getProductOptions()
@@ -108,6 +129,22 @@ public class ProductServiceUsingCompletableFuture {
                     });
 
         return prodInfo;*/
+
+    }
+
+    private List<ProductOption> updateInventory_approach2(ProductInfo prodInfo) {
+
+        List<CompletableFuture<ProductOption>> productOptionList = prodInfo.getProductOptions()
+                .stream()
+                .map(productOption -> {
+                    return CompletableFuture.supplyAsync(() -> inventoryService.retrieveInventory(productOption))
+                                    .thenApply(inv -> {
+                                        productOption.setInventory(inv);
+                                        return productOption;
+                                    });
+                }).collect(Collectors.toList());
+
+        return productOptionList.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
     }
 }
